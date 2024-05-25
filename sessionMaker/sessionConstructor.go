@@ -21,6 +21,8 @@ func (sessionNameString) getType() string { return "str" }
 
 type sessionNameDialector struct {
 	dialector gorm.Dialector
+
+	tablePrefix *string
 }
 
 func (sessionNameDialector) getType() string { return "dialector" }
@@ -42,14 +44,27 @@ func (*SimpleSessionConstructor) loadSession() (sessionName, []byte, error) {
 
 type SqlSessionConstructor struct {
 	dialector gorm.Dialector
+
+	opts []func(*sessionNameDialector)
 }
 
-func SqlSession(dialector gorm.Dialector) *SqlSessionConstructor {
-	return &SqlSessionConstructor{dialector: dialector}
+func WithTablePrefix(tablePrefix string) func(*sessionNameDialector) {
+	return func(s *sessionNameDialector) {
+		s.tablePrefix = &tablePrefix
+	}
+}
+
+func SqlSession(dialector gorm.Dialector, opts ...func(*sessionNameDialector)) *SqlSessionConstructor {
+	return &SqlSessionConstructor{dialector: dialector, opts: opts}
 }
 
 func (s *SqlSessionConstructor) loadSession() (sessionName, []byte, error) {
-	return &sessionNameDialector{s.dialector}, nil, nil
+	snd := &sessionNameDialector{dialector: s.dialector}
+	for _, opt := range s.opts {
+		opt(snd)
+	}
+
+	return snd, nil, nil
 }
 
 type PyrogramSessionConstructor struct {

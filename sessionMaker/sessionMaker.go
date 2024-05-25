@@ -16,7 +16,7 @@ func NewSessionStorage(ctx context.Context, sessionType SessionConstructor, inMe
 		return nil, nil, err
 	}
 	if sessDialect, ok := name.(*sessionNameDialector); ok {
-		peerStorage := storage.NewPeerStorage(sessDialect.dialector, false)
+		peerStorage := storage.NewPeerStorage(sessDialect.dialector, false, storage.WithTablePrefix(sessDialect.tablePrefix))
 		return peerStorage, &SessionStorage{
 			data:        peerStorage.GetSession().Data,
 			peerStorage: peerStorage,

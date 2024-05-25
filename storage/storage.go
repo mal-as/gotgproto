@@ -8,6 +8,7 @@ import (
 	"github.com/AnimeKaizoku/cacher"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
 type PeerStorage struct {
@@ -17,7 +18,22 @@ type PeerStorage struct {
 	SqlSession *gorm.DB
 }
 
-func NewPeerStorage(dialector gorm.Dialector, inMemory bool) *PeerStorage {
+type options struct {
+	tablePrefix *string
+}
+
+func WithTablePrefix(tableName *string) func(*options) {
+	return func(opts *options) {
+		opts.tablePrefix = tableName
+	}
+}
+
+func NewPeerStorage(dialector gorm.Dialector, inMemory bool, optsF ...func(*options)) *PeerStorage {
+	o := options{}
+	for _, optF := range optsF {
+		optF(&o)
+	}
+
 	p := PeerStorage{
 		inMemory: inMemory,
 		peerLock: new(sync.RWMutex),
@@ -31,10 +47,19 @@ func NewPeerStorage(dialector gorm.Dialector, inMemory bool) *PeerStorage {
 			CleanInterval: 24 * time.Hour,
 			Revaluate:     true,
 		}
-		db, err := gorm.Open(dialector, &gorm.Config{
+
+		gormConfig := &gorm.Config{
 			SkipDefaultTransaction: true,
 			Logger:                 logger.Default.LogMode(logger.Silent),
-		})
+		}
+
+		if o.tablePrefix != nil {
+			gormConfig.NamingStrategy = schema.NamingStrategy{
+				TablePrefix: *o.tablePrefix,
+			}
+		}
+
+		db, err := gorm.Open(dialector, gormConfig)
 		if err != nil {
 			log.Panicln(err)
 		}
